@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # Cowrie SSH/Telnet Honeypot
+  cowrie:
+    image: cowrie/cowrie:latest
+    container_name: honeypot-cowrie
+    hostname: cowrie-honeypot
+    restart: unless-stopped
+    ports:
+      - "2222:2222/tcp"  # SSH
+      - "2323:2323/tcp"  # Telnet
+    volumes:
+      - ./cowrie/cowrie.cfg:/cowrie/cowrie-git/etc/cowrie.cfg:ro
+      - ./cowrie/data:/cowrie/cowrie-git/var
+      - ./cowrie/logs:/cowrie/cowrie-git/var/log/cowrie
+    networks:
+      - honeypot-net
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+  # OpenCanary Multi-Protocol Honeypot
+  opencanary:
+    image: thinkst/opencanary:latest
+    container_name: honeypot-opencanary
+    hostname: opencanary-honeypot
+    restart: unless-stopped
+    ports:
+      - "8080:8080/tcp"  # HTTP
+    volumes:
+      - ./opencanary/opencanary.conf:/root/.opencanary.conf:ro
+      - ./logs/opencanary:/var/log/opencanary
+    networks:
+      - honeypot-net
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+
+  # OpenSearch for log storage and analysis
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: honeypot-opensearch
+    hostname: opensearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_SECURITY_PLUGIN=true
+      - cluster.routing.allocation.disk.threshold_enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+      - ./opensearch/index-templates:/usr/share/opensearch/index-templates:ro
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    networks:
+      - honeypot-net
+
+  # OpenSearch Dashboards for visualization
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: honeypot-dashboards
+    hostname: opensearch-dashboards
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    depends_on:
+      - opensearch
+    networks:
+      - honeypot-net
+
+  # Filebeat for log shipping
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    container_name: honeypot-filebeat
+    hostname: filebeat
+    restart: unless-stopped
+    user: root
+    command: filebeat -e -strict.perms=false
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./cowrie/logs:/var/log/cowrie:ro
+      - ./logs/opencanary:/var/log/opencanary:ro
+      - filebeat-data:/usr/share/filebeat/data
+    depends_on:
+      - opensearch
+      - cowrie
+      - opencanary
+    networks:
+      - honeypot-net
+
+networks:
+  honeypot-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/24
+
+volumes:
+  opensearch-data:
+    driver: local
+  filebeat-data:
+    driver: local

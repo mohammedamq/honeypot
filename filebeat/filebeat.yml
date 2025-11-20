@@ -1,0 +1,154 @@
+###################### Filebeat Configuration ######################
+# Multi-Protocol Honeypot Log Shipper
+
+# ============================== Inputs ===============================
+
+filebeat.inputs:
+
+# Cowrie JSON logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/cowrie/cowrie.json
+  json.keys_under_root: true
+  json.add_error_key: true
+  json.overwrite_keys: true
+  fields:
+    log_type: cowrie
+    honeypot: ssh_telnet
+  fields_under_root: true
+  processors:
+    - drop_fields:
+        fields: ["agent", "ecs", "host.name", "input"]
+        ignore_missing: true
+
+# Cowrie text logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/cowrie/cowrie.log
+  fields:
+    log_type: cowrie_text
+    honeypot: ssh_telnet
+  fields_under_root: true
+  multiline.pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+  multiline.negate: true
+  multiline.match: after
+
+# OpenCanary JSON logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/opencanary/opencanary.json
+  json.keys_under_root: true
+  json.add_error_key: true
+  json.overwrite_keys: true
+  fields:
+    log_type: opencanary
+    honeypot: web
+  fields_under_root: true
+  processors:
+    - drop_fields:
+        fields: ["agent", "ecs", "host.name", "input"]
+        ignore_missing: true
+
+# OpenCanary text logs
+- type: log
+  enabled: true
+  paths:
+    - /var/log/opencanary/opencanary.log
+  fields:
+    log_type: opencanary_text
+    honeypot: web
+  fields_under_root: true
+
+# ============================== Processors ===========================
+
+processors:
+  # Add timestamp
+  - add_host_metadata:
+      when.not.contains.tags: forwarded
+
+  # Add cloud metadata (if running in cloud)
+  - add_cloud_metadata: ~
+
+  # Add docker metadata
+  - add_docker_metadata: ~
+
+  # Extract IP addresses for GeoIP enrichment
+  - script:
+      lang: javascript
+      source: >
+        function process(event) {
+          var src = event.Get("src_ip");
+          if (!src) {
+            src = event.Get("src");
+          }
+          if (!src) {
+            src = event.Get("remote_host");
+          }
+          if (!src) {
+            src = event.Get("source_ip");
+          }
+          if (src) {
+            event.Put("client.ip", src);
+          }
+          return event;
+        }
+
+  # GeoIP enrichment
+  - add_locale: ~
+
+  # Rename fields for consistency
+  - rename:
+      fields:
+        - from: "src_ip"
+          to: "source.ip"
+        - from: "src_port"
+          to: "source.port"
+        - from: "dst_ip"
+          to: "destination.ip"
+        - from: "dst_port"
+          to: "destination.port"
+        - from: "username"
+          to: "user.name"
+        - from: "password"
+          to: "user.password"
+      ignore_missing: true
+      fail_on_error: false
+
+# ============================== Output ================================
+
+output.elasticsearch:
+  hosts: ["http://opensearch:9200"]
+  index: "honeypot-%{+yyyy.MM.dd}"
+
+  # Bulk settings
+  bulk_max_size: 50
+  worker: 1
+
+  # Pipeline for GeoIP enrichment
+  pipeline: "geoip-enrichment"
+
+# ============================== Index Template ========================
+
+setup.template.name: "honeypot"
+setup.template.pattern: "honeypot-*"
+setup.template.enabled: true
+setup.template.overwrite: true
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 0
+  index.refresh_interval: "5s"
+
+setup.ilm.enabled: false
+
+# ============================== Logging ===============================
+
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /usr/share/filebeat/data/logs
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644

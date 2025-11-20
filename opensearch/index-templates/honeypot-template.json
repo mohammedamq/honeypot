@@ -1,0 +1,135 @@
+{
+  "index_patterns": ["honeypot-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s",
+      "index.mapping.total_fields.limit": 2000
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "eventid": {
+          "type": "keyword"
+        },
+        "message": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "log_type": {
+          "type": "keyword"
+        },
+        "honeypot": {
+          "type": "keyword"
+        },
+        "session": {
+          "type": "keyword"
+        },
+        "source": {
+          "properties": {
+            "ip": {
+              "type": "ip"
+            },
+            "port": {
+              "type": "integer"
+            },
+            "geo": {
+              "properties": {
+                "country_name": {
+                  "type": "keyword"
+                },
+                "country_code": {
+                  "type": "keyword"
+                },
+                "city_name": {
+                  "type": "keyword"
+                },
+                "location": {
+                  "type": "geo_point"
+                }
+              }
+            },
+            "asn": {
+              "type": "keyword"
+            },
+            "as_org": {
+              "type": "keyword"
+            }
+          }
+        },
+        "destination": {
+          "properties": {
+            "ip": {
+              "type": "ip"
+            },
+            "port": {
+              "type": "integer"
+            }
+          }
+        },
+        "user": {
+          "properties": {
+            "name": {
+              "type": "keyword"
+            },
+            "password": {
+              "type": "keyword"
+            }
+          }
+        },
+        "protocol": {
+          "type": "keyword"
+        },
+        "input": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        },
+        "command": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        },
+        "url": {
+          "type": "keyword"
+        },
+        "request": {
+          "type": "text"
+        },
+        "sensor": {
+          "type": "keyword"
+        },
+        "duration": {
+          "type": "float"
+        },
+        "version": {
+          "type": "keyword"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1
+}

@@ -1,0 +1,44 @@
+{
+  "description": "GeoIP enrichment pipeline for honeypot logs",
+  "processors": [
+    {
+      "geoip": {
+        "field": "source.ip",
+        "target_field": "source.geo",
+        "ignore_missing": true,
+        "ignore_failure": true
+      }
+    },
+    {
+      "geoip": {
+        "field": "client.ip",
+        "target_field": "client.geo",
+        "ignore_missing": true,
+        "ignore_failure": true
+      }
+    },
+    {
+      "rename": {
+        "field": "source.geo.country_name",
+        "target_field": "source.geo.country",
+        "ignore_missing": true,
+        "ignore_failure": true
+      }
+    },
+    {
+      "rename": {
+        "field": "source.geo.city_name",
+        "target_field": "source.geo.city",
+        "ignore_missing": true,
+        "ignore_failure": true
+      }
+    },
+    {
+      "set": {
+        "field": "@timestamp",
+        "value": "{{_ingest.timestamp}}",
+        "override": false
+      }
+    }
+  ]
+}

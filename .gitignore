@@ -1,0 +1,36 @@
+# Honeypot Data and Logs
+cowrie/data/*
+cowrie/logs/*
+logs/opencanary/*
+*.log
+*.json.gz
+
+# OpenSearch Data
+opensearch-data/
+
+# Docker
+.env
+docker-compose.override.yml
+
+# Filebeat Data
+filebeat-data/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Temporary Files
+*.tmp
+*.temp
+*.swp
+*~
+
+# Backup Files
+*.bak
+*.backup
+*.tar.gz
+
+# Keep directory structure
+!cowrie/data/.gitkeep
+!cowrie/logs/.gitkeep
+!logs/opencanary/.gitkeep
